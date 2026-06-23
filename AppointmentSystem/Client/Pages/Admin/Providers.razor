@@ -1,0 +1,74 @@
+@page "/admin/providers"
+@using AppointmentSystem.Shared.Models
+@inject HttpClient Http
+
+<h3>Providers (Admin)</h3>
+
+<div class="row">
+    <div class="col-6">
+        <h5>Create provider</h5>
+        <div class="mb-2">
+            <input class="form-control" placeholder="Name" @bind="newName" />
+        </div>
+        <div class="mb-2">
+            <input class="form-control" placeholder="TimeZoneId (e.g. UTC)" @bind="newTimeZone" />
+        </div>
+        <div class="mb-2">
+            <label>Work day start</label>
+            <input class="form-control" type="time" @bind="newWorkStart" />
+        </div>
+        <div class="mb-2">
+            <label>Work day end</label>
+            <input class="form-control" type="time" @bind="newWorkEnd" />
+        </div>
+        <button class="btn btn-primary" @onclick="Create">Create</button>
+    </div>
+
+    <div class="col-6">
+        <h5>Existing providers</h5>
+        <table class="table">
+            <thead>
+                <tr><th>Name</th><th>TimeZone</th><th>Work hours</th></tr>
+            </thead>
+            <tbody>
+                @foreach(var p in providers)
+                {
+                    <tr>
+                        <td>@p.Name</td>
+                        <td>@p.TimeZoneId</td>
+                        <td>@(p.WorkDayStart?.ToString() ?? "-") - @(p.WorkDayEnd?.ToString() ?? "-")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<Provider> providers = new();
+    private string newName = string.Empty;
+    private string newTimeZone = "UTC";
+    private TimeOnly newWorkStart = TimeOnly.Parse("09:00");
+    private TimeOnly newWorkEnd = TimeOnly.Parse("17:00");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        providers = await Http.GetFromJsonAsync<List<Provider>>("api/providers") ?? new();
+    }
+
+    private async Task Create()
+    {
+        var ws = newWorkStart.ToTimeSpan();
+        var we = newWorkEnd.ToTimeSpan();
+        var p = new Provider { Name = newName, TimeZoneId = newTimeZone, WorkDayStart = ws, WorkDayEnd = we };
+        var resp = await Http.PostAsJsonAsync("api/providers", p);
+        if (resp.IsSuccessStatusCode) await Load();
+    }
+}
+
+

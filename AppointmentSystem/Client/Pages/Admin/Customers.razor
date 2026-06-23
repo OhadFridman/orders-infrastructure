@@ -1,0 +1,65 @@
+@page "/admin/customers"
+@using AppointmentSystem.Shared.Models
+@inject HttpClient Http
+
+<h3>Customers (Admin)</h3>
+
+<div class="row">
+    <div class="col-6">
+        <h5>Create customer</h5>
+        <div class="mb-2">
+            <input class="form-control" placeholder="Full name" @bind="newName" />
+        </div>
+        <div class="mb-2">
+            <input class="form-control" placeholder="Email" @bind="newEmail" />
+        </div>
+        <div class="mb-2">
+            <input class="form-control" placeholder="Phone" @bind="newPhone" />
+        </div>
+        <button class="btn btn-primary" @onclick="Create">Create</button>
+    </div>
+
+    <div class="col-6">
+        <h5>Existing customers</h5>
+        <table class="table">
+            <thead>
+                <tr><th>Name</th><th>Email</th><th>Phone</th></tr>
+            </thead>
+            <tbody>
+                @foreach(var c in customers)
+                {
+                    <tr>
+                        <td>@c.FullName</td>
+                        <td>@c.Email</td>
+                        <td>@c.Phone</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<Customer> customers = new();
+    private string newName = string.Empty;
+    private string? newEmail;
+    private string? newPhone;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        customers = await Http.GetFromJsonAsync<List<Customer>>("api/customers") ?? new();
+    }
+
+    private async Task Create()
+    {
+        var c = new Customer { FullName = newName, Email = newEmail, Phone = newPhone };
+        var resp = await Http.PostAsJsonAsync("api/customers", c);
+        if (resp.IsSuccessStatusCode) await Load();
+    }
+}
+

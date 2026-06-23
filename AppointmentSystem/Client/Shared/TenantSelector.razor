@@ -1,0 +1,25 @@
+@inject HttpClient Http
+@inject AppointmentSystem.Client.Services.TenantService TenantService
+
+<div class="tenant-selector d-flex align-items-center">
+    <label class="me-2">Tenant:</label>
+    <input class="form-control me-2" style="width:200px" @bind="slug" placeholder="tenant-slug" />
+    <button class="btn btn-sm btn-primary" @onclick="SetTenant">Set</button>
+</div>
+
+@code {
+    private string? slug;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TenantService.InitializeAsync(Http);
+        slug = TenantService.TenantSlug;
+    }
+
+    private async Task SetTenant()
+    {
+        if (string.IsNullOrWhiteSpace(slug)) return;
+        await TenantService.SetTenantAsync(slug!, Http);
+    }
+}
+

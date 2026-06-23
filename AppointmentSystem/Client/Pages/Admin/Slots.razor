@@ -1,0 +1,105 @@
+@page "/admin/slots"
+@using AppointmentSystem.Shared.Models
+@inject HttpClient Http
+
+<h3>Manual Slots (Admin)</h3>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="row mb-3">
+        <div class="col-4">
+            <label>Provider</label>
+            <select class="form-select" @bind="selectedProviderId">
+                <option value="">-- choose --</option>
+                @foreach(var p in providers)
+                {
+                    <option value="@p.Id">@p.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-3">
+            <label>Date</label>
+            <input class="form-control" type="date" @bind="slotDate" />
+        </div>
+        <div class="col-2">
+            <label>Time</label>
+            <input class="form-control" type="time" @bind="slotTime" />
+        </div>
+        <div class="col-2">
+            <label>Duration (min)</label>
+            <input class="form-control" type="number" @bind="slotDuration" />
+        </div>
+        <div class="col-1 d-flex align-items-end">
+            <button class="btn btn-primary" @onclick="CreateSlot">Add</button>
+        </div>
+    </div>
+
+    <h5>Existing slots</h5>
+    <table class="table">
+        <thead><tr><th>Start (UTC)</th><th>End (UTC)</th><th>Notes</th><th></th></tr></thead>
+        <tbody>
+            @foreach(var s in slots)
+            {
+                <tr>
+                    <td>@s.StartUtc.ToString("u")</td>
+                    <td>@s.EndUtc.ToString("u")</td>
+                    <td>@s.Notes</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteSlot(s.Id)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private bool isLoading = true;
+    private List<Provider> providers = new();
+    private Guid? selectedProviderIdBacking;
+    private Guid? selectedProviderId
+    {
+        get => selectedProviderIdBacking;
+        set
+        {
+            selectedProviderIdBacking = value;
+            _ = LoadSlots();
+        }
+    }
+    private DateOnly slotDate = DateOnly.FromDateTime(DateTime.Now);
+    private TimeOnly slotTime = TimeOnly.FromDateTime(DateTime.Now);
+    private int slotDuration = 30;
+    private List<ProviderManualSlot> slots = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        providers = await Http.GetFromJsonAsync<List<Provider>>("api/providers") ?? new();
+        isLoading = false;
+    }
+
+    private async Task LoadSlots(ChangeEventArgs? _ = null)
+    {
+        if (selectedProviderId == null) { slots = new(); return; }
+        slots = await Http.GetFromJsonAsync<List<ProviderManualSlot>>($"api/slots?providerId={selectedProviderId}") ?? new();
+    }
+
+    private async Task CreateSlot()
+    {
+        if (selectedProviderId == null) return;
+        var local = slotDate.ToDateTime(slotTime);
+        var startUtc = DateTime.SpecifyKind(local, DateTimeKind.Local).ToUniversalTime();
+        var slot = new ProviderManualSlot { ProviderId = selectedProviderId.Value, StartUtc = startUtc, EndUtc = startUtc.AddMinutes(slotDuration) };
+        var resp = await Http.PostAsJsonAsync("api/slots", slot);
+        if (resp.IsSuccessStatusCode) await LoadSlots();
+    }
+
+    private async Task DeleteSlot(Guid id)
+    {
+        var resp = await Http.DeleteAsync($"api/slots/{id}");
+        if (resp.IsSuccessStatusCode) await LoadSlots();
+    }
+}
+
+

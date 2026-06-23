@@ -1,0 +1,12 @@
+[
+  {
+    "Id": "11111111-1111-1111-1111-111111111111",
+    "Name": "Standard Service",
+    "DurationMinutes": 30,
+    "BufferBeforeMinutes": 0,
+    "BufferAfterMinutes": 0,
+    "Price": 20.0,
+    "CustomFieldsJson": null,
+    "CategoryIds": []
+  }
+]

@@ -1,0 +1,9 @@
+[
+  {
+    "Id": "33333333-3333-3333-3333-333333333333",
+    "FullName": "Test Customer",
+    "Email": "test@example.com",
+    "Phone": "+10000000000",
+    "MetadataJson": null
+  }
+]

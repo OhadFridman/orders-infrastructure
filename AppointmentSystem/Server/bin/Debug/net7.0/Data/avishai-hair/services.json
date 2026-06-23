@@ -1,0 +1,12 @@
+[
+  {
+    "Id": "c30c10f3-3026-4827-974e-f9e86dc94099",
+    "Name": "Man\u0027s Haircut",
+    "DurationMinutes": 30,
+    "BufferBeforeMinutes": 0,
+    "BufferAfterMinutes": 0,
+    "Price": null,
+    "CustomFieldsJson": null,
+    "CategoryIds": []
+  }
+]

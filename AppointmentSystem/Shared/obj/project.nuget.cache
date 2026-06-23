@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "2uYNUq4tWeU=",
+  "success": true,
+  "projectFilePath": "/Users/ohad.fridman/projects/orders-infrastructure/AppointmentSystem/Shared/AppointmentSystem.Shared.csproj",
+  "expectedPackageFiles": [
+    "/Users/ohad.fridman/.nuget/packages/microsoft.netcore.app.ref/7.0.20/microsoft.netcore.app.ref.7.0.20.nupkg.sha512",
+    "/Users/ohad.fridman/.nuget/packages/microsoft.aspnetcore.app.ref/7.0.20/microsoft.aspnetcore.app.ref.7.0.20.nupkg.sha512"
+  ],
+  "logs": []
+}

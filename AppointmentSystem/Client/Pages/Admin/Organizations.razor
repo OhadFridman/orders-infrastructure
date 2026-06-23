@@ -1,0 +1,104 @@
+@page "/admin/organizations"
+@using AppointmentSystem.Shared.Models
+@inject HttpClient Http
+
+<h3>Organizations (Tenants)</h3>
+
+<div class="mb-3">
+    <label>Name</label>
+    <input class="form-control" @bind="name" />
+</div>
+<div class="mb-3">
+    <label>Slug</label>
+    <input class="form-control" @bind="slug" placeholder="avishai-hair" />
+</div>
+<h5>Optional seed configuration</h5>
+<div class="row">
+    <div class="col-6">
+        <label>Default service name</label>
+        <input class="form-control" @bind="defaultServiceName" />
+    </div>
+    <div class="col-3">
+        <label>Duration (min)</label>
+        <input class="form-control" type="number" @bind="defaultServiceDuration" />
+    </div>
+</div>
+<div class="row mt-2">
+    <div class="col-6">
+        <label>Default provider name</label>
+        <input class="form-control" @bind="defaultProviderName" />
+    </div>
+    <div class="col-3">
+        <label>Work start</label>
+        <input class="form-control" type="time" @bind="defaultProviderStart" />
+    </div>
+    <div class="col-3">
+        <label>Work end</label>
+        <input class="form-control" type="time" @bind="defaultProviderEnd" />
+    </div>
+</div>
+<div class="mt-3">
+    <button class="btn btn-primary" @onclick="Create">Create</button>
+</div>
+
+<hr />
+
+<h5>Existing</h5>
+<table class="table">
+    <thead><tr><th>Slug</th><th>Name</th></tr></thead>
+    <tbody>
+        @foreach(var o in orgs)
+        {
+            <tr><td>@o.Slug</td><td>@o.Name</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private string name = string.Empty;
+    private string slug = string.Empty;
+    private List<Organization> orgs = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        orgs = await Http.GetFromJsonAsync<List<Organization>>("api/organizations") ?? new();
+    }
+
+    private async Task Create()
+    {
+        var org = new Organization { Name = name, Slug = slug };
+        var config = new AppointmentSystem.Shared.Models.TenantConfig();
+        if (!string.IsNullOrWhiteSpace(defaultServiceName))
+        {
+            config.DefaultServices.Add(new AppointmentSystem.Shared.Models.ServiceDefinition { Name = defaultServiceName, DurationMinutes = defaultServiceDuration });
+        }
+        if (!string.IsNullOrWhiteSpace(defaultProviderName))
+        {
+            var prov = new AppointmentSystem.Shared.Models.Provider { Name = defaultProviderName };
+            prov.WorkDayStart = defaultProviderStart.ToTimeSpan();
+            prov.WorkDayEnd = defaultProviderEnd.ToTimeSpan();
+            config.DefaultProviders.Add(prov);
+        }
+
+        var req = new { Organization = org, Config = config };
+        var resp = await Http.PostAsJsonAsync("api/organizations", req);
+        if (resp.IsSuccessStatusCode) await Load();
+    }
+
+    private string defaultServiceName = string.Empty;
+    private int defaultServiceDuration = 30;
+    private string defaultProviderName = string.Empty;
+    private TimeOnly defaultProviderStart = TimeOnly.Parse("09:00");
+    private TimeOnly defaultProviderEnd = TimeOnly.Parse("17:00");
+}
+
+
+
+
+
+

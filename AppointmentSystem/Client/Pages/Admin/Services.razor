@@ -1,0 +1,74 @@
+@page "/admin/services"
+@using AppointmentSystem.Shared.Models
+@inject HttpClient Http
+
+<h3>Services (Admin)</h3>
+
+<div class="row">
+    <div class="col-6">
+        <h5>Create service</h5>
+        <div class="mb-2">
+            <input class="form-control" placeholder="Name" @bind="newName" />
+        </div>
+        <div class="mb-2">
+            <input class="form-control" type="number" placeholder="Duration (minutes)" @bind="newDuration" />
+        </div>
+        <div class="mb-2">
+            <input class="form-control" type="number" placeholder="Buffer before (minutes)" @bind="newBufferBefore" />
+        </div>
+        <div class="mb-2">
+            <input class="form-control" type="number" placeholder="Buffer after (minutes)" @bind="newBufferAfter" />
+        </div>
+        <div class="mb-2">
+            <input class="form-control" type="number" step="0.01" placeholder="Price" @bind="newPrice" />
+        </div>
+        <button class="btn btn-primary" @onclick="Create">Create</button>
+    </div>
+
+    <div class="col-6">
+        <h5>Existing services</h5>
+        <table class="table">
+            <thead>
+                <tr><th>Name</th><th>Duration</th><th>Buffers</th><th>Price</th></tr>
+            </thead>
+            <tbody>
+                @foreach(var s in services)
+                {
+                    <tr>
+                        <td>@s.Name</td>
+                        <td>@s.DurationMinutes</td>
+                        <td>@s.BufferBeforeMinutes / @s.BufferAfterMinutes</td>
+                        <td>@(s.Price?.ToString() ?? "-")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<ServiceDefinition> services = new();
+    private string newName = string.Empty;
+    private int newDuration = 30;
+    private int newBufferBefore = 0;
+    private int newBufferAfter = 0;
+    private decimal? newPrice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        services = await Http.GetFromJsonAsync<List<ServiceDefinition>>("api/services") ?? new();
+    }
+
+    private async Task Create()
+    {
+        var s = new ServiceDefinition { Name = newName, DurationMinutes = newDuration, BufferBeforeMinutes = newBufferBefore, BufferAfterMinutes = newBufferAfter, Price = newPrice };
+        var resp = await Http.PostAsJsonAsync("api/services", s);
+        if (resp.IsSuccessStatusCode) await Load();
+    }
+}
+

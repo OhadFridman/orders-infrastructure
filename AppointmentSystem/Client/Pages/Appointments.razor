@@ -1,0 +1,228 @@
+@page "/appointments"
+@using AppointmentSystem.Shared.Models
+@inject HttpClient Http
+
+<h3>Appointments</h3>
+
+<p>
+    This page shows existing appointments and lets you create a simple one.
+</p>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <h4>Create appointment</h4>
+    <div class="mb-3">
+        <label>Service</label>
+        <select class="form-select" @bind="newServiceId">
+            <option value="">-- choose --</option>
+            @foreach (var s in services)
+            {
+                <option value="@s.Id">@s.Name (@s.DurationMinutes min)</option>
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Provider</label>
+        <select class="form-select" @bind="newProviderId">
+            <option value="">-- choose --</option>
+            @foreach (var p in providers)
+            {
+                <option value="@p.Id">@p.Name</option>
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Customer</label>
+        <select class="form-select" @bind="newCustomerId">
+            <option value="">-- choose --</option>
+            @foreach (var c in customers)
+            {
+                <option value="@c.Id">@c.FullName</option>
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Date</label>
+        <input class="form-control" type="date" @bind="selectedDate" />
+    </div>
+
+    <div class="mb-3">
+        <label>Available time slots (provider local time)</label>
+        <div>
+            @if (isLoadingSlots)
+            {
+                <div>Loading slots...</div>
+            }
+            else if (slots?.Any() != true)
+            {
+                <div>No slots available for the selected date.</div>
+            }
+            else
+            {
+                foreach (var s in slots)
+                {
+                    <button class="btn btn-outline-secondary m-1" @onclick="() => SelectSlot(s)">@s.Display</button>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label>Selected slot</label>
+        <div>@(selectedSlot?.Display ?? "(none)")</div>
+    </div>
+
+    <button class="btn btn-primary" @onclick="CreateAppointment" disabled="@(selectedSlot==null)">Create</button>
+
+    <hr />
+
+    <h4>Existing appointments</h4>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Start (UTC)</th>
+                <th>End (UTC)</th>
+                <th>Service</th>
+                <th>Provider</th>
+                <th>Customer</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var a in appointments)
+            {
+                <tr>
+                    <td>@a.StartUtc.ToString("u")</td>
+                    <td>@a.EndUtc.ToString("u")</td>
+                    <td>@(services.FirstOrDefault(s=>s.Id==a.ServiceId)?.Name ?? a.ServiceId.ToString())</td>
+                    <td>@(providers.FirstOrDefault(p=>p.Id==a.ProviderId)?.Name ?? a.ProviderId.ToString())</td>
+                    <td>@(customers.FirstOrDefault(c=>c.Id==a.CustomerId)?.FullName ?? a.CustomerId.ToString())</td>
+                    <td>@a.Status</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private bool isLoading = true;
+    private List<ServiceDefinition> services = new();
+    private List<Provider> providers = new();
+    private List<Customer> customers = new();
+    private List<Appointment> appointments = new();
+
+    private Guid? newServiceIdBacking;
+    private Guid? newProviderIdBacking;
+
+    private Guid? newServiceId
+    {
+        get => newServiceIdBacking;
+        set
+        {
+            newServiceIdBacking = value;
+            _ = OnDateOrSelectionChanged();
+        }
+    }
+
+    private Guid? newProviderId
+    {
+        get => newProviderIdBacking;
+        set
+        {
+            newProviderIdBacking = value;
+            _ = OnDateOrSelectionChanged();
+        }
+    }
+    private Guid? newCustomerId;
+    private DateTime newStartLocal = DateTime.Now;
+    private DateOnly selectedDate = DateOnly.FromDateTime(DateTime.Now);
+    private bool isLoadingSlots = false;
+    private List<(DateTime Utc, string Display)> slots = new();
+    private (DateTime Utc, string Display)? selectedSlot;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        isLoading = false;
+    }
+
+    private async Task LoadData()
+    {
+        services = await Http.GetFromJsonAsync<List<ServiceDefinition>>("api/services") ?? new();
+        providers = await Http.GetFromJsonAsync<List<Provider>>("api/providers") ?? new();
+        customers = await Http.GetFromJsonAsync<List<Customer>>("api/customers") ?? new();
+        appointments = await Http.GetFromJsonAsync<List<Appointment>>("api/appointments") ?? new();
+    }
+
+    private async Task CreateAppointment()
+    {
+        if (newServiceId == null || newProviderId == null || newCustomerId == null) return;
+
+        if (selectedSlot == null) return;
+        var startUtc = selectedSlot.Value.Utc;
+
+        var ap = new Appointment
+        {
+            ServiceId = newServiceId.Value,
+            ProviderId = newProviderId.Value,
+            CustomerId = newCustomerId.Value,
+            StartUtc = startUtc
+        };
+
+        var resp = await Http.PostAsJsonAsync("api/appointments", ap);
+        if (resp.IsSuccessStatusCode)
+        {
+            await LoadData();
+            // clear selection
+            selectedSlot = null;
+        }
+        else
+        {
+            var txt = await resp.Content.ReadAsStringAsync();
+            Console.Error.WriteLine($"Failed: {resp.StatusCode} {txt}");
+        }
+    }
+
+    private async Task OnDateOrSelectionChanged(ChangeEventArgs? _ = null)
+    {
+        // load slots if service and provider selected and date
+        slots.Clear();
+        selectedSlot = null;
+        if (newServiceId == null || newProviderId == null) return;
+        isLoadingSlots = true;
+        try
+        {
+            var dateStr = selectedDate.ToString("yyyy-MM-dd");
+            var url = $"api/availability?providerId={newProviderId}&serviceId={newServiceId}&date={dateStr}&slotMinutes=15";
+            var result = await Http.GetFromJsonAsync<List<AvailabilitySlotDto>>(url);
+            if (result != null)
+            {
+                slots = result.Select(r => (r.StartUtc, r.StartLocalDisplay)).ToList();
+            }
+        }
+        finally
+        {
+            isLoadingSlots = false;
+        }
+    }
+
+    private void SelectSlot((DateTime Utc, string Display) s)
+    {
+        selectedSlot = s;
+    }
+
+    private class AvailabilitySlotDto
+    {
+        public DateTime StartUtc { get; set; }
+        public string StartLocal { get; set; } = string.Empty;
+        // helper for display
+        public string StartLocalDisplay => StartLocal;
+    }
+}
+
+
